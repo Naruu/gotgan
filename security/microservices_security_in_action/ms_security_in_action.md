@@ -160,3 +160,122 @@
 
 
 ## Chapter4. Accessing a secured microservice via a single-page application
+
+### Architecture of SPA
+![spa architecture](spa_arch.jpg)
+
+### Authentication flow of SPA
+- authentication flow
+
+  ![spa authentication flow](spa_auth_flow.jpg)
+
+- with webserver
+
+  ![spa with web server](spa_web_server.jpg)
+
+- with resource server
+
+  ![spa with resource server](spa_resource_server.jpg)
+
+### With single/multi trust domains
+- The client application(SPA), authorization server, and resource server need to be in the same trust domain.
+
+  ![spa with with single trust domain](spa_single_trust_domain.jpg)
+- To build trusts between multiple trust domains,
+  - web server should exchange token from authorizations to the one for domain2.
+  - in case of JWT, JWT bearer grant type accepts a JWT, validates it, and issues a valid OAuth 2.0 token(whic is another JWT or opaque token string)
+  ![spa with with multi trust domains](spa_multi_trust_domains.jpg)
+
+
+## Chapter5. Engaging throttling, monitoring, and access control
+> Throttling \
+> a. the suppression or prevention of an activity \
+> b. the activity or process of limiting the bandwidth available to users of an electronic communication systems (such as the Internet) \
+> referenced: merriam-webster dictionary
+
+### 5.1 Throttling at the API gateway with Zuul
+- scaling is not free. \
+Also, there is a physical limit on how much we can scale the system. \
+Thus limiting the number of requests(throttling) is needed.
+- basic notion: count the number of requests and if exceeds the limit, block
+  - Quota-based
+    - provide each application a quota
+    - identify application with client-id which can be retrieved from auth server with access token
+  - fair usage policy for user
+    - in case of multiple users per application, ex) 20 users on one application
+    - ex) JWT, use sub claim to identify user
+- set maximum threshold limit
+- operation level throttling
+  - Single api may have two microservices. One for read, the other for write.
+  - Throttling may be required on operation-level
+- Throttling the OAuth 2.0 token and authorize endpoints
+  - Throttling on auth server api is hard, since the requests are preauthenticated, which means we can identify the source of the request
+  - Only ip is available, and it is out of the handling scope of the api gateway. Instead, deal with firewall
+- privilege-based throttling
+  - highger priviliege may have more quota
+
+### 5.2 Monitoring and analytics with Prometheus and Grafana
+- prometheus pulls metrics data from microservice periodically
+- Also, it has a push-gateway for short-lived process, to send-data before prometheus polls
+
+![prometheus](./prometheus.jpg)
+
+### 5.3 Enforcing access-control policies at the API gateway with Open Policy Agent
+![opa](./opa.jpg)
+
+
+
+## Chapter6. Securing east/west traffic with certificates
+### 6.1 Why use mTLS?
+- TLS
+  - with tls, no one in the middle can see what it is
+  - client application can identify the server that it communicates with
+  - the server should have valid certificate that is trusted by all the client applications
+- CA(certificate authority)
+  - A third party that signs the certificate given to the service
+  - Few trusted CA exist, their public keys are embedded in all browsers
+  - browser can verify that the service's certificate is valid by verifying the signature against the CA's public key.
+- mTLS
+  - both server and client msut have valid certificate and trust corresponding certificates.
+  - secure communications between microservices
+
+### 6.5 Challenges in key management
+- bootstraping trust
+  - have a single CA, and each microservice trust this CA
+- provisioning key/certificates to workloads or microservices
+  - typical key-provisioning process at an enterprice
+    - generate public/private key pair
+    - create a certificate signing request(CSR) & submit
+    - when acepted, deploy the certificate and the keys to the microservice
+  - at netflix
+    - short-lived credential
+  - generating long-lived credentials
+    - netf
+  - SPIFFE
+    - SPIFFE(Secure Production Identity Framework For Everyone): open standard that defines a way a microservice can establish an identity
+    - SPIFFE Runtime Environment: open source reference implementation of SPIFFE
+- key revocation
+  - cases
+    - private key is compromised
+    - CA's private key is compromised
+    - the detail of CSR is invalid
+    - certificate does not represent the original entity at the time the certificate was issued.
+  - CRL(certificate revocation list): old way, up to TLS client's application
+  - OCSP(Online Certificate Status Protocol)
+    - tls client asks to the OCSP end point if the certificate is revoked, every time it sees.
+    - increase client-side latency
+    - unclear if the response contain updated revocation information. cached response
+    - response can be faked, filtered, etc.
+    - privacy risk. OCSP responder knows end user
+  - OCSP stapling
+    - server recieves the staple from the OCSP end point and attach it when it responds to the client
+  - short-lived certificate
+    - only rely on expiration
+    - short-lived certificate is in-memory thus cheap, \
+    whereas loading long-lived certificate is expensive
+    - netflix uses a layered approach \
+      during bootup, use long-lived credentials, then each microservice get short-lived credentials using the long-lived credentials
+      ![netflix](./netflix.jpg)
+
+- key rotation
+- monitoring key usage
