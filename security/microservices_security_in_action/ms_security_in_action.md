@@ -1,31 +1,35 @@
-## Chapter1. Microservice Security Landscape
+## Chapter 1. Microservice Security Landscape
+
 ### 1.1 How security works in a monolithic application
+
 - The servlet filters authenticates the request, and adds user information in the web session.
 - The inner components assume that the request is valid.
 - The security is controlled centrally
 
 ### 1.2 Challenges of securing microservices
-  - More entry point, more points to be protected
-  	- mono: one entry point, in-process call on one jvm
-  	- micro: many entry points(each one has its own). in-process call -> remote call
-  - distributed security screening -> poor performance
-    - monolithic: security check once
-    - mociroservice: repetitive check(w/ remote security token service) \
+
+- More entry point, more points to be protected
+  - mono: one entry point, in-process call on one jvm
+  - micro: many entry points(each one has its own). in-process call -> remote call
+- distributed security screening -> poor performance
+  - monolithic: security check once
+  - mociroservice: repetitive check(w/ remote security token service) \
     -> redundant checks, performance issue
-   - deployment complexities
-     - each microservice need certifiacte which is used in authentication. Need way to revoke and rotate certificates
-  - hard to trace the request
-    - three pillars of observability: log, metrics, traces
-    - request may go through multiple microservices before leaving the system since it enters.
-  - conatiners are immutable, but allowed clients are dynamically decided.
-    - store access-control policy in different server(the policy administration end-point)
-      - push model: the policy administration end-point pushes policy updates to the interstes mocioservices
-      - pull model: each microservice polls the policy administration end-point
-    - certificate should be rotated, injected when the service boots up
-  - sharing user context is hard since distributed
-  - polyglot architecture -> each one use different tech stack
+- deployment complexities
+  - each microservice need certifiacte which is used in authentication. Need way to revoke and rotate certificates
+- hard to trace the request
+  - three pillars of observability: log, metrics, traces
+  - request may go through multiple microservices before leaving the system since it enters.
+- conatiners are immutable, but allowed clients are dynamically decided.
+  - store access-control policy in different server(the policy administration end-point)
+    - push model: the policy administration end-point pushes policy updates to the interstes mocioservices
+    - pull model: each microservice polls the policy administration end-point
+  - certificate should be rotated, injected when the service boots up
+- sharing user context is hard since distributed
+- polyglot architecture -> each one use different tech stack
 
 ### 1.3 Key Security fundamentals
+
 - Authentication: identify the request party
   - clarify the audience first
   - system delegates human user: OAuth 2.0
@@ -50,6 +54,7 @@
 - authorization: do you have a permission?
 
 ### 1.4 Edge Security
+
 - role of API Gateway
   - expose a selected set of microservices to the outside world as API
   - build quality-of-service(QoS) features(security, thorttling, analytics)
@@ -60,6 +65,7 @@
 - passing client/user context to upstreaam microservices: http header, jwt
 
 ### 1.5 Securing service-to-service communication
+
 - service-to-service communication
   - synchornous: http
   - asynchronous: message queue
@@ -74,7 +80,7 @@
   - JWT
     - application layer
     - JWT includes claims and signed by the issuer. \
-    issuer can be STS or the micrsoervice itself
+      issuer can be STS or the micrsoervice itself
     - works over TLS
 - service-level auhtorization
   > PDP(Policty Decision Point)
@@ -82,7 +88,7 @@
     - access-control policies are defined, stored, and evaluated centrally
     - to authenticate, need to talk to the endpoint
     - create dependency on the PDP and increase latency \
-    caching can decrease latency
+      caching can decrease latency
   - embedded PDP model
     - policies defined centrally but stored and evaluted at the service level
     - the challenge: how to update policy from the centralized policy administration point(PAP)
@@ -93,13 +99,15 @@
   - JWT issued by calling service: calling service can lie th euser context
   - JWT issued by external STS: most secure
 - crossing trust boundaries
+
   - w/o api gateway between trust domain
+
     1. api gateway -> order processing service with jwt signed by the gateway, aud: order processing service
     2. order processing microservice -> STS of foo domain.
     3. foo STS returns new JWT signed by it, aud: STS of bar
     4. and 5. order processing microservice -> STS of bar, get new JWT signed by STS of bar, aud: delivery microservice
-    6. order processing microservice access declivery microservice
-    ![without gateway](without_gateway.jpg)
+    5. order processing microservice access declivery microservice
+       ![without gateway](without_gateway.jpg)
 
   - w api gateway between trust domain
     1. api gateway -> order processing service with jwt signed by the gateway, aud: order processing service
@@ -107,16 +115,18 @@
     3. foo STS returns new JWT signed by it, aud: apigateway of the bar
     4. order processing microservice -> api gateway of bar
     5. api gateway of bar -> STS of bar \
-    bar STS creates jwt with aud: delivery microservice
+       bar STS creates jwt with aud: delivery microservice
     6. api gateway of bar -> delivery microservice
-    ![with gateway](with_gateway.jpg).
+       ![with gateway](with_gateway.jpg).
 
 ## Chpater2. Fist steps in securing microservice
+
 ![Oauth](oauth.jpg).
 
-## Chapter3. Securing north/south traffic with an API gateway
+## Chapter 3. Securing north/south traffic with an API gateway
 
 ### 3.1 The need for an api gateway in a microservice deployment
+
 - Decoupling security from the microservice
   - Change of security protocol require changes in the microservice
   - Scaling up the microservice results in more connecdtions to the authorization server
@@ -127,6 +137,7 @@
   - with api gateway, we can divide read service and write service but maintain the identical entrypoint.
 
 ### 3.2 Security at the edge(why OAuth 2.0?)
+
 - diverse consumers: internal, external, hybrid applications
 - delegating access: client application access on behalf user
 - why not basic authentication?
@@ -141,6 +152,7 @@
   - how long: ensure that access is granted for desired period
 
 ### 3.3 Setting up an API gateway with Zuul
+
 - Firewall blocks the direct access from client application to microservice/authorization server
 - JWT
   - Authroization server is hard to scale but, recieves many requests.
@@ -150,21 +162,23 @@
       - solution1: short-lived JWT
       - solution2: inform the API gateway of the revoked tokens
     - certificate used to verify a token signature might have expired. \
-    then, JWT can no longer be verified.
+      then, JWT can no longer be verified.
       - solution1. deploy the new certificate when renewed
       - solution2. provision the ceritifacte of the CA(certificate authority) of the token issuer.
 
 ### 3.3 Setting up an API gateway with Zuul
+
 - preveneting access with the firewall
 - use mTLS in communcation between the api gateway and microservices
 
-
-## Chapter4. Accessing a secured microservice via a single-page application
+## Chapter 4. Accessing a secured microservice via a single-page application
 
 ### Architecture of SPA
+
 ![spa architecture](spa_arch.jpg)
 
 ### Authentication flow of SPA
+
 - authentication flow
 
   ![spa authentication flow](spa_auth_flow.jpg)
@@ -178,25 +192,28 @@
   ![spa with resource server](spa_resource_server.jpg)
 
 ### With single/multi trust domains
+
 - The client application(SPA), authorization server, and resource server need to be in the same trust domain.
 
   ![spa with with single trust domain](spa_single_trust_domain.jpg)
+
 - To build trusts between multiple trust domains,
   - web server should exchange token from authorizations to the one for domain2.
   - in case of JWT, JWT bearer grant type accepts a JWT, validates it, and issues a valid OAuth 2.0 token(whic is another JWT or opaque token string)
-  ![spa with with multi trust domains](spa_multi_trust_domains.jpg)
+    ![spa with with multi trust domains](spa_multi_trust_domains.jpg)
 
+## Chapter 5. Engaging throttling, monitoring, and access control
 
-## Chapter5. Engaging throttling, monitoring, and access control
 > Throttling \
 > a. the suppression or prevention of an activity \
 > b. the activity or process of limiting the bandwidth available to users of an electronic communication systems (such as the Internet) \
 > referenced: merriam-webster dictionary
 
 ### 5.1 Throttling at the API gateway with Zuul
+
 - scaling is not free. \
-Also, there is a physical limit on how much we can scale the system. \
-Thus limiting the number of requests(throttling) is needed.
+  Also, there is a physical limit on how much we can scale the system. \
+  Thus limiting the number of requests(throttling) is needed.
 - basic notion: count the number of requests and if exceeds the limit, block
   - Quota-based
     - provide each application a quota
@@ -215,18 +232,20 @@ Thus limiting the number of requests(throttling) is needed.
   - highger priviliege may have more quota
 
 ### 5.2 Monitoring and analytics with Prometheus and Grafana
+
 - prometheus pulls metrics data from microservice periodically
 - Also, it has a push-gateway for short-lived process, to send-data before prometheus polls
 
 ![prometheus](./prometheus.jpg)
 
 ### 5.3 Enforcing access-control policies at the API gateway with Open Policy Agent
+
 ![opa](./opa.jpg)
 
+## Chapter 6. Securing east/west traffic with certificates
 
-
-## Chapter6. Securing east/west traffic with certificates
 ### 6.1 Why use mTLS?
+
 - TLS
   - with tls, no one in the middle can see what it is
   - client application can identify the server that it communicates with
@@ -240,6 +259,7 @@ Thus limiting the number of requests(throttling) is needed.
   - secure communications between microservices
 
 ### 6.5 Challenges in key management
+
 - bootstraping trust
   - have a single CA, and each microservice trust this CA
 - provisioning key/certificates to workloads or microservices
@@ -255,6 +275,7 @@ Thus limiting the number of requests(throttling) is needed.
     - SPIFFE(Secure Production Identity Framework For Everyone): open standard that defines a way a microservice can establish an identity
     - SPIFFE Runtime Environment: open source reference implementation of SPIFFE
 - key revocation
+
   - cases
     - private key is compromised
     - CA's private key is compromised
@@ -272,10 +293,55 @@ Thus limiting the number of requests(throttling) is needed.
   - short-lived certificate
     - only rely on expiration
     - short-lived certificate is in-memory thus cheap, \
-    whereas loading long-lived certificate is expensive
+      whereas loading long-lived certificate is expensive
     - netflix uses a layered approach \
       during bootup, use long-lived credentials, then each microservice get short-lived credentials using the long-lived credentials
       ![netflix](./netflix.jpg)
 
 - key rotation
+
+  - key rotation interval depends on the expiration time.
+  - keys embedded in the microservices can be short-lived and rotated frequently, but CA's private key doesn't need to be.
+  - upating CA's private key has high overhead. All the microservices should have the updated key. \
+    Neflix uses TPM and SGX.
+  - automation is required. \
+    SPIFFE is one of the solutions.
+
 - monitoring key usage
+  - logging, metrocs, tracing
+
+## Chapter 7. Securing east/west traffic with JWT
+
+### 7.1 Use cases for securing microservices with JWT
+
+- solution for two problems:
+
+  - secure service-to-service communications
+  - pass end-user context across microserves
+
+- share jwt
+
+- new jwt for each service-to-service interaction
+
+- new jwt for microservices between different trust domain
+
+- self-issued jwt
+
+- nested jwt
+
+## Chapter 9. Securing reactive microservices
+
+### 9.1 Why reactive programming?
+
+- loose coupling between the source microservice and the target microservice.
+
+### 9.x securing with kafka, NATS
+
+- often use message broker: kafka, NATS
+- security check
+  - only trusted service can talk to kafka: mtls \
+    with tls, any client can talk to kafka
+  - control access to topics: ACL \
+    kafka provides acl control
+
+## Chapter 10.
