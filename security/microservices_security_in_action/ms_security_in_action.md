@@ -1,3 +1,11 @@
+# Microservices Security in Action
+
+- subtitle: Design secure network and API endpoint security for Microservices applications, with examples using Java, Kubernetes, and Istio
+- publisher: Manning, 1st Edition(August 4, 2020)
+- all the images are from the book!!
+
+---
+
 # Table of Contents
 
 - [Chapter 1. Microservice Security Landscape](#chapter-1)
@@ -17,33 +25,25 @@
   - Authentication flow of SPA(appendix)
   - With single/multi trust domains(appendix)
 - [Chapter 5. Engaging throttling, monitoring, and access control](#chapter-5)
-
   - 5.1 Throttling at the API gateway with Zuul
   - 5.2 Monitoring and analytics with Prometheus and Grafana
   - 5.3 Enforcing access-control policies at the API gateway with Open
-
 - [Chapter 6. Securing east/west traffic with certificates](#chapter-6)
-
   - 6.1 Why use mTLS?
   - 6.5 Challenges in key management
-
 - [Chapter 7. Securing east/west traffic with JWT](#chapter-7)
   - 7.1 Use cases for securing microservices with JWT
 - [Chapter 8. securing east/west traffic over gRPC](#chapter-8)
   - skipped
 - [Chapter 9. Securing reactive microservices](#chapter-9)
-
   - 9.1 Why reactive programming?
   - 9.x securing with kafka, NATS
-
 - [Chapter 10. Conquering container security with docker](#chapter-10)
-
   - 10.2 Managing secrets in a Docker container
   - 10.3 Using Docker Content Trust to sing and verify Docker image
   - 10.5. Running containers with limited privileges
   - 10.6 Running Docker Bench for security
   - 10.7 Securing access to the Docker host
-
 - [Chapter 11. Securing microservices on Kubernetes](#chapter-11)
   - 11.2,3 configmap, secret
   - 11.6 user account, service account
