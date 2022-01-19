@@ -1,17 +1,55 @@
 # Table of Contents
 
 - [Chapter 1. Microservice Security Landscape](#chapter-1)
+  - 1.1 How security works in a monolithic application
+  - 1.2 Challenges of securing microservices
+  - 1.3 Key Security fundamentals
+  - 1.4 Edge Security
+  - 1.5 Securing service-to-service communication
 - [Chapter 2. Fist steps in securing microservice](#chapter-2)
 - [Chapter 3. Securing north/south traffic with an API gateway](#chapter-3)
+  - 3.1 The need for an api gateway in a microservice deployment
+  - 3.2 Security at the edge(why OAuth 2.0?)
+  - 3.3 Setting up an API gateway with Zuul
+  - 3.3 Setting up an API gateway with Zuul
 - [Chapter 4. Accessing a secured microservice via a single-page application](#chapter-4)
+  - Architecture of SPA(appendix)
+  - Authentication flow of SPA(appendix)
+  - With single/multi trust domains(appendix)
 - [Chapter 5. Engaging throttling, monitoring, and access control](#chapter-5)
+
+  - 5.1 Throttling at the API gateway with Zuul
+  - 5.2 Monitoring and analytics with Prometheus and Grafana
+  - 5.3 Enforcing access-control policies at the API gateway with Open
+
 - [Chapter 6. Securing east/west traffic with certificates](#chapter-6)
+
+  - 6.1 Why use mTLS?
+  - 6.5 Challenges in key management
+
 - [Chapter 7. Securing east/west traffic with JWT](#chapter-7)
+  - 7.1 Use cases for securing microservices with JWT
 - [Chapter 8. securing east/west traffic over gRPC](#chapter-8)
+  - skipped
 - [Chapter 9. Securing reactive microservices](#chapter-9)
+
+  - 9.1 Why reactive programming?
+  - 9.x securing with kafka, NATS
+
 - [Chapter 10. Conquering container security with docker](#chapter-10)
+
+  - 10.2 Managing secrets in a Docker container
+  - 10.3 Using Docker Content Trust to sing and verify Docker image
+  - 10.5. Running containers with limited privileges
+  - 10.6 Running Docker Bench for security
+  - 10.7 Securing access to the Docker host
+
 - [Chapter 11. Securing microservices on Kubernetes](#chapter-11)
+  - 11.2,3 configmap, secret
+  - 11.6 user account, service account
+  - 11.7 role-based access control in Kubernetes
 - [Chapter 12. Securing microservices with Istio service mesh](#chapter-12)
+  - in progress
 
 ---
 
@@ -196,11 +234,11 @@
 
 ## Chapter 4. Accessing a secured microservice via a single-page <a id="chapter-4"></a>application
 
-### Architecture of SPA
+### Architecture of SPA(appendix)
 
 ![spa architecture](spa_arch.jpg)
 
-### Authentication flow of SPA
+### Authentication flow of SPA(appendix)
 
 - authentication flow
 
@@ -214,7 +252,7 @@
 
   ![spa with resource server](spa_resource_server.jpg)
 
-### With single/multi trust domains
+### With single/multi trust domains(appendix)
 
 - The client application(SPA), authorization server, and resource server need to be in the same trust domain.
 
