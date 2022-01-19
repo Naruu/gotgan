@@ -1,4 +1,21 @@
-## Chapter 1. Microservice Security Landscape
+# Table of Contents
+
+- [Chapter 1. Microservice Security Landscape](#Chapter-1)
+- [Chapter 2. Fist steps in securing microservice](#Chapter-2)
+- [Chapter 3. Securing north/south traffic with an API gateway](#Chapter-3)
+- [Chapter 4. Accessing a secured microservice via a single-page application](#Chapter-4)
+- [Chapter 5. Engaging throttling, monitoring, and access control](#Chapter-5)
+- [Chapter 6. Securing east/west traffic with certificates](#Chapter-6)
+- [Chapter 7. Securing east/west traffic with JWT](#Chapter-7)
+- [Chapter 8. securing east/west traffic over gRPC](#Chapter-8)
+- [Chapter 9. Securing reactive microservices](#Chapter-9)
+- [Chapter 10. Conquering container security with docker](#Chapter-10)
+- [Chapter 11. Securing microservices on Kubernetes](#Chapter-11)
+- [Chapter 12. Securing microservices with Istio service mesh](#Chapter-12)
+
+---
+
+## Chapter 1. Microservice Security Landscape <a name="Chapter 1"></a>
 
 ### 1.1 How security works in a monolithic application
 
@@ -119,11 +136,19 @@
     6. api gateway of bar -> delivery microservice
        ![with gateway](with_gateway.jpg).
 
-## Chpater2. Fist steps in securing microservice
+## Chapter 2. Fist steps in securing microservice <a name="Chapter 2"></a>
 
 ![Oauth](oauth.jpg).
 
-## Chapter 3. Securing north/south traffic with an API gateway
+## Chapter 3. Securing north/south traffic with an API gateway <a name="Chapter 3"></a>
+
+> - north/south traffic
+>   - edge security \
+>     (protecting a set of resouces at the entrypoint to the deployment, at the API gateway)
+>   - api gateway pattern
+> - east/west traffic
+>   - service-to-service security
+>   - service mesh pattern
 
 ### 3.1 The need for an api gateway in a microservice deployment
 
@@ -171,7 +196,7 @@
 - preveneting access with the firewall
 - use mTLS in communcation between the api gateway and microservices
 
-## Chapter 4. Accessing a secured microservice via a single-page application
+## Chapter 4. Accessing a secured microservice via a single-page <a name="Chapter 4"></a>application
 
 ### Architecture of SPA
 
@@ -202,7 +227,7 @@
   - in case of JWT, JWT bearer grant type accepts a JWT, validates it, and issues a valid OAuth 2.0 token(whic is another JWT or opaque token string)
     ![spa with with multi trust domains](spa_multi_trust_domains.jpg)
 
-## Chapter 5. Engaging throttling, monitoring, and access control
+## Chapter 5. Engaging throttling, monitoring, and access control <a name="Chapter 5"></a>
 
 > Throttling \
 > a. the suppression or prevention of an activity \
@@ -242,7 +267,7 @@
 
 ![opa](./opa.jpg)
 
-## Chapter 6. Securing east/west traffic with certificates
+## Chapter 6. Securing east/west traffic with certificates <a name="Chapter 6"></a>
 
 ### 6.1 Why use mTLS?
 
@@ -310,26 +335,82 @@
 - monitoring key usage
   - logging, metrocs, tracing
 
-## Chapter 7. Securing east/west traffic with JWT
+## Chapter 7. Securing east/west traffic with JWT <a name="Chapter 7"></a>
 
 ### 7.1 Use cases for securing microservices with JWT
 
-- solution for two problems:
+- two goals:
 
   - secure service-to-service communications
   - pass end-user context across microserves
 
-- share jwt
+- shared JWT
 
-- new jwt for each service-to-service interaction
+  - when identity of the end user is needed in access control, and the microservice isn't relevant
+  - need to carry user context on every request
+  - still, JWT with mTLS is better option.(double defense)
+  - how
+    - STS authenticates the reqeust once, returns new JWT
+    - this JWT is used acroos all requests
+    - the microservice validated JWT by itself.
 
-- new jwt for microservices between different trust domain
+  ![jwt_shared](./jwt_shared.jpg)
 
-- self-issued jwt
+- new JWT for each service-to-service interaction
 
-- nested jwt
+  - how: generate new JWT for each service interaction
+    - when recieve request, the microservice authenticates JWT by itself.
+    - before send request to other microservice, create new JWT with STS.(4.a, 4.b)
+    - field to care in token exchgange request: subject_token_type, grant_type \
+      ex)[google Oauth2.0 token exchange parameter](https://cloud.google.com/iam/docs/reference/sts/rest/v1beta/TopLevel/token)
+  - why this approach?
 
-## Chapter 9. Securing reactive microservices
+    - We can put the target microservice in the JWT's audience field. It explicits who the intended audience is.
+    - STS is a better place to control access than microservice itself. \
+       STS always knows who initiated the token exchange and the callee of the request.
+
+  ![jwt_new](./jwt_new.jpg)
+
+- new JWT for microservices between different trust domain
+
+  - how
+    - api gateway in target trust domain authenticates the token with that domain's STS(step 8) \
+      target domain's STS should trust source domain's STS
+    - target trust domain's STS returns new STS(step 9)
+
+  ![jwt_diff_domain](./jwt_diff_domain.jpg)
+
+- self-issued JWT
+
+  - how
+    - previously, JWT was issued by trusted STS. Thus to authenticate the token, STS's public key was required.
+    - self-issued JWT is generated by each microservice with its own private/public key.
+    - self-issued JWT is passed as an http header over tls. \
+      The reciever validates wih the public key of the sender.
+  - mTLS vs. self-issued JWT
+    - self-issued JWT ~ mTLS(on a par) : when used only for authenticating between services.
+    - self-issued JWT > mTLS: when sharing contextual data.
+    - mTLS
+      - provides: confidentiality and integrety of the data in transit
+      - not provides: nonrepudiation
+    - self-issued JWT is signed with issuer's private key \
+       -> provides repundiation
+      > bearer token: anyone who steals a bearer token an use it without any problem until the token expires.
+
+- nested JWT
+
+  - JWT that embeds another JWT. extension of self-issued JWT
+  - inner JWT is signed with STS's private key. \
+    outer JWT is signed by the sender's private key.
+  - it holds the identity of the end user and the calling microservice
+
+  ![jwt_nested](./jwt_nested.jpg)
+
+## Chapter 8. securing east/west traffic over gRPC <a name="Chapter 8"></a>
+
+skipped
+
+## Chapter 9. Securing reactive microservices <a name="Chapter 9"></a>
 
 ### 9.1 Why reactive programming?
 
@@ -344,4 +425,86 @@
   - control access to topics: ACL \
     kafka provides acl control
 
-## Chapter 10.
+## Chapter 10. Conquering container security with docker <a name="Chapter 10"></a>
+
+- The security of a microservice deployment should be thought of in the context of a container orchestration framework, not just as container security in isolation
+
+### 10.2 Managing secrets in a Docker container
+
+- externalizing secret from Docker image(`--mount`)
+- passing secret as environment variables(`--env`)
+- above two are not recommended for production, utilzie container orchestration framework
+
+### 10.3 Using Docker Content Trust to sing and verify Docker image
+
+- DCT(Docker Content Trust) signs and verify docker image. \
+  It depends on Notary(open source project for signing and verifying content, image, anything)
+- To publish an image to the Docker registry, sign it with private key
+- When pulling image from the Docker registry, verify the image with public key.
+- types of keys used in DCT: skipped
+- how dct protects the client application from replay attacks: skipped
+
+### 10.5. Running containers with limited privileges
+
+- two types of processes
+  - privileged process
+    - userId: 0
+    - bypass all kernel-level permission
+    - default user of Docker container
+  - unprivileged process
+    - userId: any number except 0
+    - must go through permission check
+  - Any change made inside the container as a root user does not affect the host machine, except using volume.
+- Running a container with a nonroot user
+  - `--user` option on `docker run`
+  - `--cap-drop`, `--cap-add` on `docker run` \
+    (Linux kernel's `capabilities` feature)
+
+### 10.6 Running Docker Bench for security
+
+- a script that checks a Docker deployment best-practices defined by Center for Internet ecurity.
+- open source project
+
+### 10.7 Securing access to the Docker host
+
+![docker remote](./docker_remote.jpg)
+
+- use mTLS between client and host
+  - host: nginx conf
+    - `ssl_verify_client` = `on`
+    - `ssl_client_certificate` = `path/to/public/key_lit/file`
+    - this allows any client with certificate issued by a trusted CA to access the Docker API
+  - client
+    - `docker --tlsverify`
+
+## Chapter 11. Securing microservices on Kubernetes <a name="Chapter 111"></a>
+
+### 11.2,3 configmap, secret
+
+- use configmap to externalize configurations
+- use secret for sensitive data
+- secret vs configmap
+  - secrets are not written to the disk, but only stored in memory
+  - Secrets are stored in etcd, thus master node is the only disk it is written on.
+
+### 11.6 user account, service account
+
+- each pod is bound to single service account
+- a service account can be bound to many pods.
+- benefit of custom service account:
+  - isolate what each Pod can do with the Kubernetes API server
+  - fine-grained access control on communications among Pods
+
+### 11.7 role-based access control in Kubernetes
+
+- role: set a permissions or capabilities
+- Role, ClusterRole
+  - Role: permission within a namespace
+  - ClusteRrole: permission on Kubernetes cluster level(across the namespace)
+- RoleBinding, ClusterRoleBinding
+  - RoleBinding: binding between users/services - Role
+  - ClusterRoleBinding: binding between users/services - ClusterRole
+- Kubernetes has a plugin architecture to authenticate and authorize request. \
+  Implementation depends on the plugin.
+
+## Chapter 12. Securing microservices with Istio service mesh <a name="Chapter 12"></a>
