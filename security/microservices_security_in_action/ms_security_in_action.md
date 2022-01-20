@@ -14,12 +14,12 @@
   - 1.3 Key Security fundamentals
   - 1.4 Edge Security
   - 1.5 Securing service-to-service communication
-- [Chapter 2. Fist steps in securing microservice](#chapter-2)
+- [Chapter 2. First steps in securing microservice](#chapter-2)
 - [Chapter 3. Securing north/south traffic with an API gateway](#chapter-3)
   - 3.1 The need for an api gateway in a microservice deployment
   - 3.2 Security at the edge(why OAuth 2.0?)
   - 3.3 Setting up an API gateway with Zuul
-  - 3.3 Setting up an API gateway with Zuul
+  - 3.4 Securing communication between Zuul and the microservice
 - [Chapter 4. Accessing a secured microservice via a single-page application](#chapter-4)
   - Architecture of SPA(appendix)
   - Authentication flow of SPA(appendix)
@@ -27,21 +27,21 @@
 - [Chapter 5. Engaging throttling, monitoring, and access control](#chapter-5)
   - 5.1 Throttling at the API gateway with Zuul
   - 5.2 Monitoring and analytics with Prometheus and Grafana
-  - 5.3 Enforcing access-control policies at the API gateway with Open
+  - 5.3 Enforcing access-control policies at the API gateway with Open Policy Agent
 - [Chapter 6. Securing east/west traffic with certificates](#chapter-6)
   - 6.1 Why use mTLS?
   - 6.5 Challenges in key management
 - [Chapter 7. Securing east/west traffic with JWT](#chapter-7)
   - 7.1 Use cases for securing microservices with JWT
-- [Chapter 8. securing east/west traffic over gRPC](#chapter-8)
+- [Chapter 8. Securing east/west traffic over gRPC](#chapter-8)
   - skipped
 - [Chapter 9. Securing reactive microservices](#chapter-9)
   - 9.1 Why reactive programming?
   - 9.x securing with kafka, NATS
 - [Chapter 10. Conquering container security with docker](#chapter-10)
   - 10.2 Managing secrets in a Docker container
-  - 10.3 Using Docker Content Trust to sing and verify Docker image
-  - 10.5. Running containers with limited privileges
+  - 10.3 Using Docker Content Trust to sign and verify Docker image
+  - 10.5 Running containers with limited privileges
   - 10.6 Running Docker Bench for security
   - 10.7 Securing access to the Docker host
 - [Chapter 11. Securing microservices on Kubernetes](#chapter-11)
@@ -49,7 +49,12 @@
   - 11.6 user account, service account
   - 11.7 role-based access control in Kubernetes
 - [Chapter 12. Securing microservices with Istio service mesh](#chapter-12)
-  - in progress
+  - 12.3,4 Securing service-to-service communications with mTLS, JWT
+  - 12.5 Enforcing authorization
+  - 12.6 Managing keys in Istio
+- [Chapter 13. Secure coding practices and automation](#chapter-13)
+  - 13.1 OWASP API security top 10
+  - 13.2,3 static/dynamic code analysis
 
 ---
 
@@ -57,13 +62,13 @@
 
 ### 1.1 How security works in a monolithic application
 
-- The servlet filters authenticates the request, and adds user information in the web session.
+- The servlet filter authenticates the request, and adds user information in the web session.
 - The inner components assume that the request is valid.
-  --The security is controlled centrally
+- The security is controlled centrally
 
 ### 1.2 Challenges of securing microservices
 
-- More entry point, more points to be protected
+- More entry point, thus more points to be protected
   - mono: one entry point, in-process call on one jvm
   - micro: many entry points(each one has its own). in-process call -> remote call
 - distributed security screening -> poor performance
@@ -71,35 +76,37 @@
   - mociroservice: repetitive check(w/ remote security token service) \
     -> redundant checks, performance issue
 - deployment complexities
-  - each microservice need certifiacte which is used in authentication. Need way to revoke and rotate certificates
+  - each microservice needs certifiacte which is used in authentication. Need way to revoke and rotate certificates
 - hard to trace the request
   - three pillars of observability: log, metrics, traces
   - request may go through multiple microservices before leaving the system since it enters.
-- conatiners are immutable, but allowed clients are dynamically decided.- - store access-control policy in different server(the policy administration end-point)
-  - push model: the policy administration end-point pushes policy updates to the interstes mocioservices
-  - pull model: each microservice polls the policy administration end-point
+- conatiners are immutable, but allowed clients are dynamically decided(addresses change).
+  - store access-control policy in different server(the policy administration end-point)
+    - push model: the policy administration endpoint pushes policy updates to the interested microservices
+    - pull model: each microservice polls the policy administration end-point
   - certificate should be rotated, injected when the service boots up
 - sharing user context is hard since distributed
 - polyglot architecture -> each one use different tech stack
 
 ### 1.3 Key Security fundamentals
 
-- Authentication: identify-the request party
+- Authentication: identify the request party
   - clarify the audience first
   - system delegates human user: OAuth 2.0
   - authenticate human user: MFA(Multi Factor Authentication) ex) OTP, FIDO(Fast-Identity-Online)
   - authenticate system: certificates, JWT
 - Integrity: check if the data is not modified
-  - data in transit: sing-in. ex) TLS, https
+  - data in transit: sigin-in. ex) TLS, https
   - data in rest: audit trailing, periodically calculate message digest of audit trail, encyrpt, and store securely
-- nonrepundiation: the microservice can not deny that he didn't-do the transaction
+- nonrepudiation: the microservice can not deny that he didn't do the transaction
   - digital signature, record of signature and timestamp
-- confidentiality- protect from uninteded disclosure
+- confidentiality
+  - protect from uninteded disclosure
   - when hijacked, data should not be understandable
-  - encryption. However, it is expensive
-  - data in transmit: ex) TLS \
-    with proxy server,
-    - TLS bridging- proxy server terminates TLS connection and creates a new one. Data is readable in the proxy server.
+  - encryption.(however, it is expensive)
+  - data in transmit \
+    ex) TLS with proxy server,
+    - TLS bridging: proxy server terminates TLS connection and creates a new one. Data is readable in the proxy server.
     - TLS tunneling: proxy server creates a tunnel. Data is unreadable in the proxy server.
   - data in rest: database
 - availiability: the system should be running, no matter what
@@ -114,14 +121,14 @@
   - build quality-of-service(QoS) features(security, thorttling, analytics)
 - authentication
   - certificate-based: server to server. mTLS
-  - Oauth 2.0: human(delegate to server) to system
+  - OAuth 2.0: human(delegate to server) to system
 - authorization
-- passing client/user context to upstreaam microservices: http header, jwt
+- passing client/user context to upstream microservices: http header, jwt
 
 ### 1.5 Securing service-to-service communication
 
 - service-to-service communication
-  - synchornous: http
+  - synchronous: http
   - asynchronous: message queue
 - service-to-service authentication
   - trust the network
@@ -133,15 +140,15 @@
     - each microservice carries public/private key
   - JWT
     - application layer
-    - JWT includes claims and signed by the issuer. \
+    - JWT includes claims and is signed by the issuer. \
       issuer can be STS or the micrsoervice itself
     - works over TLS
-- service-level auhtorization
+- service-level authorization
   > PDP(Policty Decision Point)
   - centralized PDP model
     - access-control policies are defined, stored, and evaluated centrally
     - to authenticate, need to talk to the endpoint
-    - create dependency on the PDP and increase latency \
+    - create dependency on the PDP and increase latency. \
       caching can decrease latency
   - embedded PDP model
     - policies defined centrally but stored and evaluted at the service level
@@ -150,32 +157,38 @@
       - since servers load policies when boot, the service should restart to reload. -> overkill
 - propagating user context among microservices
   - http header: can be modified
-  - JWT issued by calling service: calling service can lie th euser context
+  - JWT issued by calling service: calling service can lie about the user context
   - JWT issued by external STS: most secure
 - crossing trust boundaries
 
   - w/o api gateway between trust domain
 
-    1. api gateway -> order processing service with jwt signed by the gateway, aud: order processing service
+    1. api gateway -> order processing service with jwt signed by the gateway, jwt's `aud`: order processing service`
     2. order processing microservice -> STS of foo domain.
-    3. foo STS returns new JWT signed by it, aud: STS of bar
-    4. and 5. order processing microservice -> STS of bar, get new JWT signed by STS of bar, aud: delivery microservice
-    5. order processing microservice access declivery microservice
-       ![without gateway](without_gateway.jpg)
+    3. foo STS returns new JWT signed by it, jwt's `aud`: STS of bar
+    4. order processing microservice -> STS of bar
+    5. get new JWT signed by STS of bar, jwt's `aud`: delivery microservice
+    6. order processing microservice access declivery microservice
 
-  - w api gateway between trust domain
-    1. api gateway -> order processing service with jwt signed by the gateway, aud: order processing service
+    ![without gateway](without_gateway.jpg)
+
+  - w/ api gateway between trust domain
+
+    1. api gateway -> order processing service with jwt signed by the gateway, jwt's `aud`: order processing service
     2. order processing microservice -> STS of foo domain.
-    3. foo STS returns new JWT signed by it, aud: apigateway of the bar
+    3. foo STS returns new JWT signed by it. jwt's `aud`: api gateway of the bar
     4. order processing microservice -> api gateway of bar
     5. api gateway of bar -> STS of bar \
-       bar STS creates jwt with aud: delivery microservice
+       bar STS creates jwt with `aud`: delivery microservice
     6. api gateway of bar -> delivery microservice
-       ![with gateway](with_gateway.jpg).
 
-## Chapter 2. Fist steps in securing microservice <a id="chapter-2"></a>
+    ![with gateway](with_gateway.jpg).
 
-![Oauth](oauth.jpg).
+## Chapter 2. First steps in securing microservice <a id="chapter-2"></a>
+
+- OAuth 2.0
+
+![OAuth](oauth.jpg).
 
 ## Chapter 3. Securing north/south traffic with an API gateway <a id="chapter-3"></a>
 
@@ -190,33 +203,34 @@
 ### 3.1 The need for an api gateway in a microservice deployment
 
 - Decoupling security from the microservice
-  - Change of security protocol require changes in the microservice
-  - Scaling up the microservice results in more connecdtions to the authorization server
+  - Change of security protocol requires changes in the microservice
+  - Scaling up the microservice results in more connections to the authorization server
 - Consistent interface while microservices may be inconsistent. \
   (microservices tend to have diverse tech stack, complex structures)
-- hide inner-structure
+- hide inner structure
   - in some cases, read happens much more than writes
-  - with api gateway, we can divide read-service and write service but maintain the identical-entrypoint.
+  - with api gateway, we can divide read-service and write-service but maintain the identical entrypoint.
 
 ### 3.2 Security at the edge(why OAuth 2.0?)
 
-- diverse consumers: internal, external, hybrid applications-- delegating access: client application access on behalf user
+- diverse consumers: internal, external, hybrid applications
+- delegating access: client application access on behalf user
 - why not basic authentication?
-  - username and password are static, long-living
+  - username and password are static, long-living(no expiration)
   - no scope check
 - why not mTLS?
-  - has expiration, which solves basic athentication's problem but...
+  - has expiration, which solves basic authentication's problem but...
   - no access delegation
 - Why OAuth 2.0?
   - who: only permitted entities
   - what purpose: scope
-  - how long: ensure that access is granted for desired period
+  - how long: ensure that access is granted for the desired period
 
 ### 3.3 Setting up an API gateway with Zuul
 
 - Firewall blocks the direct access from client application to microservice/authorization server
 - JWT
-  - Authroization server is hard to scale but, recieves many requests.
+  - Authorization server is hard to scale but recieves many requests.
   - If access token contains information needed for authentication, we can solve this problem.
   - pitfalls of self-validating-token
     - no way to revoke prematurely
@@ -227,7 +241,7 @@
       - solution1. deploy the new certificate when renewed
       - solution2. provision the ceritifacte of the CA(certificate authority) of the token issuer.
 
-### 3.3 Setting up an API gateway with Zuul
+### 3.4 Securing communication between Zuul and the microservice
 
 - preveneting access with the firewall
 - use mTLS in communcation between the api gateway and microservices
@@ -259,8 +273,8 @@
   ![spa with with single trust domain](spa_single_trust_domain.jpg)
 
 - To build trusts between multiple trust domains,
-  - web server should exchange token from authorizations to the one for domain2.
-  - in case of JWT, JWT bearer grant type accepts a JWT, validates-it, and issues a valid OAuth-2.0 token(whic is another JWT or opaque token string)
+  - web server should exchange token from authorizations server to the one for domain 2.
+  - in case of JWT, JWT bearer grant type accepts a JWT, validates it, and issues a valid OAuth-2.0 token(which is another JWT or opaque token string)
     ![spa with with multi trust domains](spa_multi_trust_domains.jpg)
 
 ## Chapter 5. Engaging throttling, monitoring, and access control <a id="chapter-5"></a>
@@ -268,7 +282,7 @@
 > Throttling \
 > a. the suppression or prevention of an activity \
 > b. the activity or process of limiting the bandwidth available-to users of an electronic communication systems (such as the Internet) \
-> referenced: merriam-webster dictionary
+> reference: merriam-webster dictionary
 
 ### 5.1 Throttling at the API gateway with Zuul
 
@@ -277,20 +291,20 @@
   Thus limiting the number of requests(throttling) is needed.
 - basic notion: count the number of requests and if exceeds the limit, block
   - Quota-based
-    - provide each-application a quota
-    - identify-application with client-id which-can be retrieved from auth server with access token
+    - provide each application a quota
+    - identify application with client-id which can be retrieved from auth server with access token
   - fair usage policy for user
     - in case of multiple users per application, ex) 20 users on one application
-    - ex) JWT, use sub claim to identify-user
+    - ex) JWT, use sub claim to identify user
 - set maximum threshold limit
 - operation level throttling
   - Single api may have two microservices. One for read, the other for write.
   - Throttling may be required on operation-level
-- Throttling the OAuth 2.0 token and authorize endpoints
-  - Throttling on auth server api is hard, since the requests are preauthenticated, which means we can identify-the source of the request
+- Throttling the OAuth 2.0 token and authorization endpoints
+  - Throttling on auth server api is hard, since the requests are before authenticated, which means we can not identify the source of the request
   - Only ip is available, and it is out of the handling scope of the api gateway. Instead, deal with firewall
 - privilege-based throttling
-  - highger priviliege may have more quota
+  - higher privilege may have more quota
 
 ### 5.2 Monitoring and analytics with Prometheus and Grafana
 
@@ -308,15 +322,15 @@
 ### 6.1 Why use mTLS?
 
 - TLS
-  - with tls, no one in the middle-can see what it is
-  - client application can identify-the server that it communicates with
-  - the server should have valid certificate-that is trusted by all the client applications
+  - with tls, no one in the middle can see what it is
+  - client application can identify the server that it communicates with
+  - the server should have valid certificate that is trusted by all the client applications
 - CA(certificate authority)
   - A third party that signs the certificate given to the service
-  - Few trusted CA exist, their public keys are embedded in all browsers
-  - browser can verify that the service's certificate is valid by-verifying the signature against the CA's public key.
+  - Few trusted CA exist. Their public keys are embedded in all browsers
+  - browser can verify that the service's certificate is valid by verifying the signature against the CA's public key.
 - mTLS
-  - both server and client msut have valid certificate-and trust corresponding certificates.
+  - both server and client must have valid certificate and trust corresponding certificates.
   - secure communications between microservices
 
 ### 6.5 Challenges in key management
@@ -324,38 +338,56 @@
 - bootstraping trust
   - have a single CA, and each microservice trust this CA
 - provisioning key/certificates to workloads or microservices
-  - typical key-provisioning process at an enterprice
+
+  - typical key provisioning process at an enterprise
     - generate public/private key pair
     - create a certificate signing request(CSR) & submit
-    - when acepted, deploy the certificate and the keys to the microservice
-  - at netflix
-    - short-lived credential
+    - when accepted, deploy the certificate and the keys to the microservice
+  - at netflix: use Lemur
+
+    - open source certificate mangement framework
+    - acts as a broker between internal service deployment and the CA
+    - provide mangement tool to automate the key proisioning process
+    - issued keys are short-lived
+
+    ![netflix](./netflix.jpg)
+
   - generating long-lived credentials
-    - netf
+
+    - at netflix, each server use long-lived credential to talk to Lemur API to renew current signed certificate(short-lived).
+    - recommended solution
+      ```
+      1. Protect the API of the certificate issuer (such as Lemur) so that anyone who wants to access it must present a valid key.
+      2. Build a handler to intercept the continuous delivery (CD) pipeline that injects long-lived credentials into the microservices.
+      3. Write the intercept handler in such a way that it generates long-lived credentials as JWTs. The JWT will carry information about the microservice and will be signed by a key that’s known to the certificate issuer. We discuss JWTs in detail in chapter 7.
+      4. At boot-up time, the microservice uses the injected long-lived credentials (JWT) to talk to the certificate issuer’s API and to get a signed certificate. It can keep using the same long-lived credentials to rotate certificates.
+      ```
+
   - SPIFFE
     - SPIFFE(Secure Production Identity-Framework For Everyone): open standard that defines a way a microservice can establish an identity- - SPIFFE Runtime Environment: open source reference implementation of SPIFFE
+
 - key revocation
 
   - cases
     - private key is compromised
     - CA's private key is compromised
     - the detail of CSR is invalid
-      --certificate does not represent the original entity at the time the certificate was issued.
+      - certificate does not represent the original entity at the time the certificate was issued.
   - CRL(certificate revocation list): old way, up to TLS client's application
   - OCSP(Online Certificate Status Protocol)
     - tls client asks to the OCSP end point if the certificate is revoked, every time it sees.
-    - increase client-side latency- - unclear if the response contain updated revocation information. cached response
+    - increase client-side latency
+    - unclear if the response contain updated revocation information. cached response
     - response can be faked, filtered, etc.
     - privacy risk. OCSP responder knows end user
   - OCSP stapling
-    - server recieves the staple from the OCSP end point and attach it when it responds to the client
+    - server recieves the staple from the OCSP end point and attaches it when it responds to the client
   - short-lived certificate
     - only rely on expiration
     - short-lived certificate is in-memory thus cheap, \
       whereas loading long-lived certificate is expensive
     - netflix uses a layered approach \
       during bootup, use long-lived credentials, then each microservice get short-lived credentials using the long-lived credentials
-      ![netflix](./netflix.jpg)
 
 - key rotation
 
@@ -367,7 +399,7 @@
     SPIFFE is one of the solutions.
 
 - monitoring key usage
-  - logging, metrocs, tracing
+  - logging, metrics, tracing
 
 ## Chapter 7. Securing east/west traffic with JWT <a id="chapter-7"></a>
 
@@ -376,27 +408,27 @@
 - two goals:
 
   - secure service-to-service communications
-  - pass end-user context across microserves
+  - pass end-user context across microservices
 
 - shared JWT
 
-  - when identity-of the end user is needed in access control, and the microservice isn't relevant
+  - when identity of the end user is needed in access control, and the microservice isn't relevant
   - need to carry user context on every request
   - still, JWT with mTLS is better option.(double defense)
   - how
-    - STS authenticates the reqeust once, returns new JWT
+    - STS authenticates the request once, returns new JWT
     - this JWT is used acroos all requests
-    - the microservice validated-JWT by itself.
+    - the microservice validates JWT by itself.
 
   ![jwt_shared](./jwt_shared.jpg)
 
 - new JWT for each service-to-service interaction
 
   - how: generate new JWT for each service interaction
-    - when recieve request, the microservice authenticates JWT by itself.
-    - before send request to other microservice, create new JWT with STS.(4.a, 4.b)
-    - field to care in token exchgange request: subject_token_type, grant_type \
-      ex)[google Oauth2.0 token exchange parameter](https://cloud.google.com/iam/docs/reference/sts/rest/v1beta/TopLevel/token)
+    - when the microservice recieves request, it authenticates JWT by itself.
+    - before sending request to other microservice, create new JWT with STS.(4.a, 4.b)
+    - field to check for token exchange request: `subject_token_type`, `grant_type` \
+      ex) [google OAuth 2.0 token exchange parameter](https://cloud.google.com/iam/docs/reference/sts/rest/v1beta/TopLevel/token)
   - why this approach?
 
     - We can put the target microservice in the JWT's audience field. It explicits who the intended audience is.
@@ -420,26 +452,27 @@
     - previously, JWT was issued by trusted STS. Thus to authenticate the token, STS's public key was required.
     - self-issued JWT is generated by each microservice with its own private/public key.
     - self-issued JWT is passed as an http header over tls. \
-      The reciever validates-wih the public key of the sender.
+      The reciever validates with the public key of the sender.
   - mTLS vs. self-issued JWT
-    - self-issued JWT ~ mTLS(on a par) : when used only for authenticating between services.
+    - self-issued JWT ~ mTLS(on a par) : only for authenticating between services.
     - self-issued JWT > mTLS: when sharing contextual data.
     - mTLS
-      - provides:-confidentiality-and integrety of the data in transit
-      - not provides:-nonrepudiation
+      - provides: confidentiality and integrety of the data in transit
+      - not provides: nonrepudiation
     - self-issued JWT is signed with issuer's private key \
-       -> provides repundiation- > bearer token: anyone who steals a bearer token an use it without any problem until the token expires.
+       -> provides repudiation
+      > bearer token: anyone who steals a bearer token can use it without any problem until the token expires.
 
 - nested JWT
 
   - JWT that embeds another JWT. extension of self-issued JWT
   - inner JWT is signed with STS's private key. \
     outer JWT is signed by the sender's private key.
-  - it holds the identity-of the end user and the calling microservice
+  - it holds the identity of the end user and the calling microservice
 
   ![jwt_nested](./jwt_nested.jpg)
 
-## Chapter 8. securing east/west traffic over gRPC <a id="chapter-8"></a>
+## Chapter 8. Securing east/west traffic over gRPC <a id="chapter-8"></a>
 
 skipped
 
@@ -466,27 +499,28 @@ skipped
 
 - externalizing secret from Docker image(`--mount`)
 - passing secret as environment variables(`--env`)
-- above two are not recommended for production, utilzie container orchestration framework
+- above two are not recommended for production, utilize container orchestration framework
 
-### 10.3 Using Docker Content Trust to sing and verify Docker image
+### 10.3 Using Docker Content Trust to sign and verify Docker image
 
-- DCT(Docker Content Trust) signs and verify docker image. \
+- DCT(Docker Content Trust) signs and verifies docker image. \
   It depends on Notary(open source project for signing and verifying content, image, anything)
 - To publish an image to the Docker registry, sign it with private key
 - When pulling image from the Docker registry, verify the image with public key.
 - types of keys used in DCT: skipped
-- how dct protects the client application from replay attacks: skipped
+- how DCT protects the client application from replay attacks: skipped
 
-### 10.5. Running containers with limited privileges
+### 10.5 Running containers with limited privileges
 
 - two types of processes
   - privileged process
-    - userId: 0- - bypass all kernel-level permission
+    - userId: 0
+    - bypass all kernel-level permission
     - default user of Docker container
   - unprivileged process
-    - userId: any-number except 0
-    - must go through permission check
-  - Any change made inside the-container as a root user does not affect the host machine, except using volume.
+    - userId: any number except 0
+    - go through permission check
+  - Any change made inside the container as a root user does not affect the host machine, except when using volume.
 - Running a container with a nonroot user
   - `--user` option on `docker run`
   - `--cap-drop`, `--cap-add` on `docker run` \
@@ -494,7 +528,7 @@ skipped
 
 ### 10.6 Running Docker Bench for security
 
-- a script that checks a Docker deployment best-practices defined by Center for Internet ecurity.
+- a script that checks a Docker deployment best-practices defined by Center for Internet Security.
 - open source project
 
 ### 10.7 Securing access to the Docker host
@@ -516,14 +550,14 @@ skipped
 - use configmap to externalize configurations
 - use secret for sensitive data
 - secret vs configmap
-  - secrets are not written to the disk, but only stored in memory
-  - Secrets are stored in etcd, thus master node is the only disk it is written on.
+  - Secrets are not written to the disk, but only stored in memory.
+  - Secrets are stored in etcd, thus master node is the only disk the secret is written on.
 
 ### 11.6 user account, service account
 
 - each pod is bound to single service account
 - a service account can be bound to many pods.
-- benefit of custom service account:
+- benefit of custom service account
   - isolate what each Pod can do with the Kubernetes API server
   - fine-grained access control on communications among Pods
 
@@ -534,8 +568,8 @@ skipped
   - Role: permission within a namespace
   - ClusteRrole: permission on Kubernetes cluster level(across the namespace)
 - RoleBinding, ClusterRoleBinding
-  - RoleBinding: binding between users/services - Role
-  - ClusterRoleBinding: binding between users/services - ClusterRole
+  - RoleBinding: binding between users/services and Role
+  - ClusterRoleBinding: binding between users/services and ClusterRole
 - Kubernetes has a plugin architecture to authenticate and authorize request. \
   Implementation depends on the plugin.
 
@@ -549,15 +583,15 @@ skipped
 - Istio version < 1.5.0
   - MeshPoliscy: CRD for authentication in service mesh level
 - Istio version >= 1.5.0
-  - enables mTLS for all microservices by default.
+  - mTLS enabled for all microservices by default.
   - PeerAuthentication: CRD to define policies for mTLS.
   - RequestAuthentication: CRD to define policies for JWT authentication \(!caveat: request with invalid JWT - reject, request without JWT - not reject)
-- Istio does not support propagating JWT that one microservice gets to another upstream microservice. Implement by userself.
+- Istio does not support propagating JWT that one microservice gets to another upstream microservice. Should implement by yourself.
 - JWK, JWKS
   - JSON Web Key(JWK): JSON representation of a cryptographic keys
   - JSON Web Key Set(JWKS): representation of multiple of JWKs.
   - Envoy proxy uses JWKS endpoint to fetch a set of JWK. \
-    kid of JWK should match with the kid of JWT header
+    The kid of JWK should match with the kid of JWT header
 
 ### 12.5 Enforcing authorization
 
@@ -575,26 +609,25 @@ skipped
 
 ### 12.6 Managing keys in Istio
 
-- Citadel provisions keys/certificates to each workload it manages.
+- Citadel provisions keys/certificates to each workload
 - Istio version < 1.1.0
   - keys/certificte was provisioned to Envoy proxy by volume mount(`/etc/certs`)
   - Citadel keeps track of the expiration and provisions before expiration.
   - limits
     - Envoy proxies have to restart to load the new key/ceritficate
-    - The private keys are generated by Citadel which is located outside the Kubernetes node. -> Transferring keys from Citadel to the Kubernertes node is one potential security issue.
+    - The private keys are generated by Citadel which is located outside the Kubernetes node. \
+      -> Transferring keys from Citadel to the Kubernertes node is one potential security issue.
 - Istio version >= 1.1.0
 
-  - SDS(secret Discovery Service) node agent runs talks with Citadel for certificate request/response.
+  - SDS(secret Discovery Service) node agent talks with Citadel for certificate request/response.
   - node agent keeps track o the expiration(with timer job)
-  - when the key is close to expiring, the node agent sends a message to the corresponding Envoy proxy, and the proxy gets the new key
+  - when the key is close to expiring, the node agent sends a message to the corresponding Envoy proxy, and the proxy gets the new key(rerun the process in the diagram)
   - Istio version < 1.5.0: node agent inside every kubernetes node
   - Istio version >= 1.5.0: moved to Envoy proxy
 
   ![istio_sds](./istio_sds.jpg)
 
-## Chapter 13. Secure coding practices and automation
-
-- static code analysis, dynamic testing
+## Chapter 13. Secure coding practices and automation<a id="chapter-13"></a>
 
 ### 13.1 OWASP API security top 10
 
@@ -603,18 +636,18 @@ skipped
 
 #### 1. broken object-level authorization
 
-- vulnerability for using identifiers(IDs) to retrieve information from APIs.
+- vulnerability for using identifiers(IDs) to retrieve information from APIs. \
   ex) curl -i -X GET "https://graph.facebook.com/{user_id}
 - avoid passing user-id
 - use a random or unguessable ID
-- if use autoincrementing integer of DB, it gives hint on the range of IDs. \
-  ex) request with 5, GET with 1000 -> id : at least 5 ~ 1000 are valid
+- if you use autoincrementing integer of DB, it gives hint on the range of IDs. \
+  ex) request with 5, request with 1000 -> id : at least 5 ~ 1000 are valid
 
 #### 2. broken authentication
 
 - when authentication is not implemented properly
-- OAuth 2.0, etc is a protocol. \
-  If used with wrong grant_type or wrong expiration time, API can be vulnerable
+- OAuth 2.0 is a protocol. \
+  If used with wrong `grant_type` or wrong expiration time, API can be vulnerable
 - Refer to OAuth 2.0 Security Best Current Practice, OAuth 2.0 Threat Model and Security Considerations document, JSON Web Token Best Current Practices
 
 #### 3. excessive data exposure
@@ -626,13 +659,13 @@ skipped
 
 - preventing DDos
 - limit the maximum number of records
-- limit the maximum call per time
+- limit the maximum call per time period
 
 #### 5. broken function-level authorization
 
-- authorization should be done on operation level, not api level \
-  operation level: ex) is `GET /users/{use_id}` allowed? \
-  api level: ex) is `/users/{user_id}` allowed?
+- authorization should be done on operation level, not api level
+  - operation level: ex) is `GET /users/{use_id}` allowed?
+  - api level: ex) is `/users/{user_id}` allowed?
 
 #### 6. mass assignment
 
@@ -676,8 +709,9 @@ skipped
       - when you don't have permission
       - not so effective
     - active scanning
-      - use knwon techniques to find vulnerabilities
+      - use known techniques to find vulnerabilities
       - ex) sql injection
       - should be only performed in dedicated environment(ex. QA)
-- challenge: tools produce lots of false positives. \
-  To minimize, build a vulnerability mangement system that learns from earlier experience.
+- challenge
+  - tools produce lots of false positives.
+  - To minimize it, build a vulnerability mangement system that learns from earlier experience.
