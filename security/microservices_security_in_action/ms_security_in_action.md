@@ -8,6 +8,8 @@
 
 # Table of Contents
 
+### Part 1. Overview
+
 - [Chapter 1. Microservice Security Landscape](#chapter-1)
   - 1.1 How security works in a monolithic application
   - 1.2 Challenges of securing microservices
@@ -15,6 +17,9 @@
   - 1.4 Edge Security
   - 1.5 Securing service-to-service communication
 - [Chapter 2. First steps in securing microservice](#chapter-2)
+
+### Part 2. Edge Security
+
 - [Chapter 3. Securing north/south traffic with an API gateway](#chapter-3)
   - 3.1 The need for an api gateway in a microservice deployment
   - 3.2 Security at the edge(why OAuth 2.0?)
@@ -28,6 +33,9 @@
   - 5.1 Throttling at the API gateway with Zuul
   - 5.2 Monitoring and analytics with Prometheus and Grafana
   - 5.3 Enforcing access-control policies at the API gateway with Open Policy Agent
+
+### Part 3. Service-to-service Communication
+
 - [Chapter 6. Securing east/west traffic with certificates](#chapter-6)
   - 6.1 Why use mTLS?
   - 6.5 Challenges in key management
@@ -38,6 +46,9 @@
 - [Chapter 9. Securing reactive microservices](#chapter-9)
   - 9.1 Why reactive programming?
   - 9.x securing with kafka, NATS
+
+### Part 4. Secure Deployment
+
 - [Chapter 10. Conquering container security with docker](#chapter-10)
   - 10.2 Managing secrets in a Docker container
   - 10.3 Using Docker Content Trust to sign and verify Docker image
@@ -52,9 +63,34 @@
   - 12.3,4 Securing service-to-service communications with mTLS, JWT
   - 12.5 Enforcing authorization
   - 12.6 Managing keys in Istio
+
+### Part 5. Secure Development
+
 - [Chapter 13. Secure coding practices and automation](#chapter-13)
   - 13.1 OWASP API security top 10
   - 13.2,3 static/dynamic code analysis
+
+### Appendix
+
+- [D. Observability in a microservice deployment](#appendix-D)
+  - D.1 The need for obserbability
+  - D.2 four pillars of observability
+- [F. Open Policy Agent(OPA)](#appendix-F)
+  - F.1 Key components in an access-control system
+  - F.2 What is an Open Policy Agent?
+  - F.3 OPA high-level architecture
+  - F.7 External data
+  - F.8 OPA integration
+  - F.9 OPA alternatives
+- [K. Service Mesh and Istio fundamentals](#appendix-K)
+
+  - K.1 Why a service mesh?
+  - K.2 The evolution of microservice deployment
+  - K.3 Istio service mesh
+
+### etc
+
+- [embedded security vs api gateway vs service mesh](#embedded-security-vs-api-gateway-vs-service-mesh)
 
 ---
 
@@ -182,7 +218,7 @@
        bar STS creates jwt with `aud`: delivery microservice
     6. api gateway of bar -> delivery microservice
 
-    ![with gateway](with_gateway.jpg).
+    ![with gateway](with_gateway.jpg)
 
 ## Chapter 2. First steps in securing microservice <a id="chapter-2"></a>
 
@@ -595,9 +631,9 @@ skipped
 
 ### 12.5 Enforcing authorization
 
-- Istio version < 14.0.0
-  - ServiceRole, ServiceRoleBinding, ClusterRole, ClusterRoleBinding : deprecated. removed from 16.0.0
-- Istio version >= 14.0.0
+- Istio version < 1.4.0
+  - ServiceRole, ServiceRoleBinding, ClusterRole, ClusterRoleBinding : deprecated. removed from 1.6.0
+- Istio version >= 1.4.0
   - AuthorizationPolicy
     - request authentication \
       () are fields of AuthorizationPolicy CRD.
@@ -620,7 +656,7 @@ skipped
 - Istio version >= 1.1.0
 
   - SDS(secret Discovery Service) node agent talks with Citadel for certificate request/response.
-  - node agent keeps track o the expiration(with timer job)
+  - node agent keeps track of the expiration(with timer job)
   - when the key is close to expiring, the node agent sends a message to the corresponding Envoy proxy, and the proxy gets the new key(rerun the process in the diagram)
   - Istio version < 1.5.0: node agent inside every kubernetes node
   - Istio version >= 1.5.0: moved to Envoy proxy
@@ -715,3 +751,288 @@ skipped
 - challenge
   - tools produce lots of false positives.
   - To minimize it, build a vulnerability mangement system that learns from earlier experience.
+
+---
+
+# Appendix
+
+## D. Observability in a microservice deployment<a id="appendix-D"></a>
+
+- observability = monitoring + analyzing
+
+### D.1 The need for obserbability
+
+- in monolithic application, if a process fails, whole applications fails -> no paritial failure
+- in microservice architecture, easy to have partial failure. \
+  process may run in different microservice.
+  - target microservice may respond slow -> timeout
+  - microservice currently available
+  - may have a few slow db queries
+  - data inconsistency on db
+
+### D.2 four pillars of observability
+
+- metrics
+  - a set of data values that are recorded over a time \
+    typically min, max, average, percentile.
+    ex) CPU usage, load average, ...
+  - easy to monitor
+  - but, only useful to monitor a given microservice in isolation, based on a limited set of attributes.
+  - if too many metrics, hard to store and manage
+- trace
+
+  - a sequence of related distributed events
+  - A single trace will have a unique ID(UID), which spans across all the parties involved in the trae.
+  - like a collection of logs
+  - carries information needed for debugging, like entrypoint timestamp, latency information, ...
+
+  ![trace_flow](./trace_flow.jpg)
+  ![trace_diagram](./trace_diagram.jpg)
+
+  <details>
+  <summary> scenario </summary>
+
+  ![trace_scenario](./trace_scenario.jpg)
+  </details>
+
+  - global standard, library for tracing: OpenTracing, OpenCensus, OpenTelemetry
+  - major challenge
+    - hard to fit into exising system.
+    - need to add instrumentation code to a lot of places.
+    - use sidecar pattern
+      ![trace_sidecar](./trace_sidecar.jpg)
+
+- log
+  - Fluentd
+- visualization
+  - Kibana, Grafana
+
+## F. Open Policy Agent(OPA)<a id="appendix-F"></a>
+
+- two locations for authentication in microservice deployment
+  - the edge of the deployment: typically with api gateway
+  - the edge of the service: typically with a service mesh or embedded library
+- coarse-grained control at the edge(api gateway), \
+  fine-grained control in the service level. \
+  ex) authentication on `HTTP GET /users/{user-id}`: edge level \
+  order admin can view orders >= \$1000 : service level check
+- OPA: open source, lightweight, general-purpose policy engine with no dependency on microservice
+
+### F.1 Key components in an access-control system
+
+![access control architecture](./access_control_architecture.jpg)
+
+- PAP(Policy Administration Point)
+  - the component that lets policy administrator define access-control policies
+  - it sotres the policy into the poicy store \
+    policy store: db, file system, service, etc
+- PEP(Policy Enforcement Point)
+  - locates between client and server
+  - intercepts requests -> ask PDP for authentication check
+  - PEP can be api gateway, embedded interceptor, proxy of service mesh
+- PDP(Policy Decision Point)
+  - check if the request is authorized
+    - PDP loads policies from the policy store.
+    - if need more information, (ex. request have only `user-id` but need `user's age` for permission check) \
+      ask PIP(Policy Information Point) for info.
+  - if authorized, send the request to the service or API
+  - if not authorized, return error to the client
+  - before the request hits the PEP, we assume it's properly authenticated.(?)
+
+### F.2 What is an Open Policy Agent?
+
+- OPA: open source, lightweight, general-purpose policy engine with no dependency on microservice. \
+  incuating project under CNPF(Cloud Native Computing Foundation)
+- netflix, cloudflare, pinterest, ... use opa
+- uses a declarative langauge called Rego to define access-control policies
+
+### F.3 OPA high-level architecture
+
+![opa server](./opa_server.jpg)
+
+- OPA acts as PDP. It only makes "decision".
+- It exposes a set of REST APIs that PEP can connect to andd check authorization.
+- you need to build these by yourselves.
+  - PAP: policy authorizing tool
+  - policy store: a mechanism to publish policies to the OPA server
+
+### F.7 External data
+
+- how to provide extra data to OPA server that is not in the request, but needed for authentication
+- ex) to check if the user can drink alcohol, we need age info. \
+  but request holds only `user-id`, \
+  then, we need the data that maps `user-id` to `user-age`
+
+#### F.7.1 push data
+
+- by data API provided by OPA server
+- however, data is only stored in memory. \
+  Data is lost when reboot. \
+  Need to push again.
+- kubernetes admission control use this method. \
+  It has a sidecar running next to OPA that synchronizes the state of OPA with external data.
+
+#### F.7.2 file system
+
+- drawback
+  - to update, need to restart the OPA server
+  - there is dynamic reload option, but not recommended for production
+- if in kubernetes environment,
+  keep the policies and the data in git repo and use init continaer to fetch. \
+  if need update, restart toe pod
+
+#### F.7.3 overload
+
+- pass the all data needed for authentication on request.
+- when PEP sends the authorization request to OPA server, \
+  it can add extra data needed for authentication.
+- trust between OPA client and server is needed
+
+#### F.7.4 JWT
+
+- use JWT to pass extra data to OPA server
+
+#### F.7.5 Bundle API
+
+- bundle: gzipped tarball which carries OPA policies and data files.
+- bundle server: endpoint that hosts a bundle. ex) AWS S3 bucket, github repo
+- OPA server polls the bundle server, and get the latest bundle
+
+#### F.7.6 pull data
+
+- experimental feature
+- don't store the data, but pull from outside when needed
+
+### F.8 OPA integration
+
+- Istio
+  - Mixer: Istio component that takes care of precondition checking, quota mangement, telemetry reporting
+  - two pattern
+    - OPA Mixer Adapter(plugin)
+      - when request hits Envoy proxy, \
+        Envovy proxy -> Mixer -> Mixer Adapter(authentication) -> Mixer -> Envoy proxy
+    - sidecar of Envoy
+      - when request hits Envoy proxy, \
+        Envovy proxy -> sidecar(authentication) -> Envoy Proxy
+      - decisions made locally. better availibilty, performance
+- Kubernetes admission controller: OPA Gatekeeper
+- kafka: OPA Auuthorizer plugin with kafka
+
+### F.9 OPA alternatives
+
+- XACML
+
+## K. Service Mesh and Istio fundamentals<a id="appendix-K"></a>
+
+- service mesh deals with east/west traffic(traffic among microservices)
+- decouples traffic security with microservice(business logic)
+
+### K.1 Why a service mesh?
+
+- embedded service mesh
+
+  - ex) calling spring security library in the application
+  - drawback) - if spring security libary changes api, need update - in microservice architecture, each microservice might use differne language/framework. \
+     -> not all microservice can use spring security.
+
+  ![embedded](./embedded.jpg)
+
+- out-of-process service mesh
+
+  - runs apart from the microservice, intercepts the traffic coming into and going out of the microservice
+
+  ![out_of_process](./out_of_process.jpg)
+
+### K.2 The evolution of microservice deployment
+
+![service mesh architecture](./service_mesh_architecture.jpg)
+
+- data plane
+  - service proxy
+    - proxy that intercepts all the request coming in and going out of the microservice
+    - enforce security, do monitoring, mange traffic, peform service discovery, circuit breaker etc.
+    - act as PEP(Policy Enforcement Point)
+    - in typical service mesh architecture, each microservice has its own service proxy. \
+      All in-and-out traffic from a microservice flows through the service proxy
+  - ingress gateway
+    - handle traffic entering into the microservice deployment
+  - engress gateway
+    - handle traffic leaving the microservice deployment
+- control plane
+  - PAP(Policy Administration point)
+  - define all the control instructions to operate service proxies
+  - never touch data packet on runtime
+- implementations: Istio, Linkerd, HashCorp, Aspen Mesh, AWS App Mesh, Microsoft Azure Service Fabric, Redhat OpenShift Service Mesh, ...
+
+### K.3 Istio service mesh
+
+![istio architecture](./istio_architecture.jpg)
+
+- data plane
+  - service proxy: Envoy
+    - Envoy is deployed in each Pod as a sidecar
+    - Kubernetes puts all the containers in the given pod in the same node.
+    - traffic comes to the container go through Envoy, \
+      traffic leaves the container go through Envoy.
+    - provides
+      - http/2 and gRPC support
+      - protocol translation
+      - load balancing
+      - observability
+        - generates stats: downstream(incoming connection), upstream(outgoing connection), server(health of Envoy proxy)
+        - generate unique id for tracing
+      - security
+        - act as PEP
+        - Envoy and microservice are on the same pod -> never leave the node.
+        - supports mTLS, JWT, RBAC, ...
+  - Ingress gateway
+    - route traffic fro outside the cluster to a Kubernetes service
+  - Engress gateway
+    - handle outgoing traffic from the deployment
+- control plane
+
+  - Pilot
+    - help to define routing rules and configurations for service-service communication \
+      ex) 20% of traffic to v1 and 80% of traffic to v2, connection timeout, circuit breaker
+    - Envoy pulls policies from Pilot
+    - Pilot exposes an API for Istio Administrator to define policies and configurations
+  - Galley
+    - bridge between Pilot and Kubernetes \
+      (The Galley knows how to talk to Kubernetes)
+  - Mixer
+    - precondition checking(policy), quota management, telemetry reporting(logging, tracing, metrics)
+  - Citadel
+    - maintains an identity for each workload.
+    - provision X.509 certificates to each workload and manage.
+
+- without ingress
+
+  ![istio without ingress](istio_without_ingress.jpg)
+
+- with ingress
+
+  ![istio with ingress](./istio_with_ingress.jpg)
+
+---
+
+# etc
+
+### embedded security vs api gateway vs service mesh
+
+- embedded security
+
+  - ex) calling spring security library in the application
+  - drawback) - if spring security libary changes api, need update - in microservice architecture, each microservice might use differne language/framework. \
+    -> not all microservice can use spring security.
+
+  ![embedded](./embedded.jpg)
+
+- gateway
+
+  - control deployment access
+    ![without gateway](without_gateway.jpg)
+    ![with gateway](with_gateway.jpg)
+
+- service mesh
+  - control deployment access & microservice access
+    ![service mesh architecture](./service_mesh_architecture.jpg)
