@@ -204,19 +204,19 @@ What / Where / When / How
 
 #### trigger
 
-    - 언제 output을 계산할지
-    - when output for a window should happen in processing time
-    - type
-      - Watermark progress
-        - when watermark reaches the end of the window
-      - Processing time progress
-      - Element counts
-      - Punctuations(other data-dependent triggers): specific record like EOF element, flush event, etc.
-      - compoiste signals:
-        - Repetitions: regular periodic updates
-        - Conjunctions (logical AND)
-        - Disjunctions (logical OR),
-        - Sequences, which fire a progression of child triggers in a predefined order.
+- 언제 output을 계산할지
+- when output for a window should happen in processing time
+- type
+  - Watermark progress
+    - when watermark reaches the end of the window
+  - Processing time progress
+  - Element counts
+  - Punctuations(other data-dependent triggers): specific record like EOF element, flush event, etc.
+  - compoiste signals:
+    - Repetitions: regular periodic updates
+    - Conjunctions (logical AND)
+    - Disjunctions (logical OR),
+    - Sequences, which fire a progression of child triggers in a predefined order.
 
 #### allowed lateness
 
@@ -233,6 +233,7 @@ What / Where / When / How
 
 - “How do refinements of results relate?”
 - output을 계산하는 방식
+
   - discard
     - Every time results are computed, any stored state is discarded.
     - when the downstream consumer is aggregating by itself
@@ -245,6 +246,8 @@ What / Where / When / How
     - when consumer regroups with dynamic dimension
     - when dynamic windowing(sessions)
 
+  ![how](./how.png)
+
 ## Different type of windowing
 
 - processing time based
@@ -255,7 +258,7 @@ What / Where / When / How
     > definition: a composition of a set of smaller, overlapping windows, \
     >  each containing a single record, \
     >  with each record in the sequence separated from the next \
-    >  by a gap of inactivity no larger than a predefined timeout. \
+    >  by a gap of inactivity no larger than a predefined timeout.
 
   ![session](./session.png)
 
@@ -276,30 +279,31 @@ What / Where / When / How
 
 ## Add on
 
-- streaming algorithm(approximation) <a name="streaming-algorithm"></a>
-  - constraint
-    - memory constraint
-    - (limited processing time per item)
-    - small number of passes.
-  - similar with online learning. \
-    streaming algorithm can defer action until a group of points arrive, whereas online learning make decision as each point arrives
-  - ex)
-    - streaming linear regression
-      - update the regression on each data input
-    - streaming k-means
-      - diverse implementation
-      - ex) [pyspark implementation](https://databricks.com/blog/2015/01/28/introducing-streaming-k-means-in-spark-1-2.html)
-        - mini-batch k-meanns with half-life & dying cluster
-        - half-life: the time it takes before past data contributes to only one half of the current model. \
-          ex) 0.5 batch half life -> 2 batches, 5 batch half life -> 10 batches to finish the change
-        - dying cluster: invalid cluster
-    - Frequency moments
-      - The kth frequency moment of a set of frequencies $\mathbf {a}$ is defined as \
-        ${\displaystyle F_{k}(\mathbf {a} )=\sum_{i=1}^{n}a_{i}^{k}}$
-      - $F_0$: distinct count
-      - $F_1$: sum
-      - $F_k$: statistical properties
-    - https://en.wikipedia.org/wiki/Streaming_algorithm
+### streaming algorithm(approximation) <a name="streaming-algorithm"></a>
+
+- constraint
+  - memory constraint
+  - (limited processing time per item)
+  - small number of passes.
+- similar with online learning. \
+  streaming algorithm can defer action until a group of points arrive, whereas online learning make decision as each point arrives
+- ex)
+  - streaming linear regression
+    - update the regression on each data input
+  - streaming k-means
+    - diverse implementation
+    - ex) [pyspark implementation](https://databricks.com/blog/2015/01/28/introducing-streaming-k-means-in-spark-1-2.html)
+      - mini-batch k-meanns with half-life & dying cluster
+      - half-life: the time it takes before past data contributes to only one half of the current model. \
+        ex) 0.5 batch half life -> 2 batches, 5 batch half life -> 10 batches to finish the change
+      - dying cluster: invalid cluster
+  - Frequency moments
+    - The kth frequency moment of a set of frequencies $\mathbf {a}$ is defined as \
+      ${\displaystyle F_{k}(\mathbf {a} )=\sum_{i=1}^{n}a_{i}^{k}}$
+    - $F_0$: distinct count
+    - $F_1$: sum
+    - $F_k$: statistical properties
+  - https://en.wikipedia.org/wiki/Streaming_algorithm
 
 ---
 
@@ -309,7 +313,7 @@ What / Where / When / How
   - 일괄 처리. 데이터를 모았다가 한 번에 집계/연산.
   - ex) 일자별로 로그를 저장하고 자정마다 error log의 개수를 세는 작업. \
     2022-01-01.log, 2022-01-02.log의 형태로 저장하고, \
-    2022-01-02 0시에 2022-01-01.log에 들어있는 count(error log)
+    2022-01-02 0시에 2022-01-01.log에 들어있는 count(error log)를 계산
 - Streaming: 실시간 처리. 데이터가 들어오는 대로 집계/연산
   - ex) 실시간으로 error log의 개수를 수집. \
      로그를 elatic search에 수집. \
